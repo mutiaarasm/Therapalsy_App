@@ -1,0 +1,220 @@
+import 'dart:convert';
+import 'package:bellspalsy_app/app/modules/article/models/article_model.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+class ApiService {
+                                                                                                                                                                                                                                                                                               
+  static const String baseUrl = "http://192.168.100.24:5000";
+
+  static const _storage = FlutterSecureStorage();
+  static const _tokenKey = "access_token";
+
+  Future<String?> getToken() async => await _storage.read(key: _tokenKey);
+
+  Future<void> saveToken(String token) async {
+    await _storage.write(key: _tokenKey, value: token);
+  }
+
+  Future<void> logout() async {
+    await _storage.delete(key: _tokenKey);
+  }
+
+  Future<Map<String, dynamic>> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final url = Uri.parse("$baseUrl/auth/register");
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"name": name, "email": email, "password": password}),
+    );
+
+    final data = jsonDecode(res.body);
+    if (res.statusCode != 201) {
+      throw Exception(data["message"] ?? "Register gagal");
+    }
+    return data;
+  }
+
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final url = Uri.parse("$baseUrl/auth/login");
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email, "password": password}),
+    );
+
+    final data = jsonDecode(res.body);
+    if (res.statusCode != 200) {
+      throw Exception(data["message"] ?? "Login gagal");
+    }
+
+    final token = data["access_token"] as String;
+    await saveToken(token);
+    return data;
+  }
+
+  Future<List<dynamic>> getLoginHistory() async {
+
+  final token = await getToken();
+
+  if (token == null) {
+    throw Exception("Belum login");
+  }
+
+  final url = Uri.parse("$baseUrl/auth/login-history");
+
+  final res = await http.get(
+
+    url,
+
+    headers: {
+      "Authorization": "Bearer $token",
+      "Accept": "application/json",
+    },
+
+  );
+
+  final data = jsonDecode(res.body);
+
+  if (res.statusCode != 200) {
+
+    throw Exception("Gagal ambil history");
+
+  }
+
+  return data;
+
+}
+
+  Future<Map<String, dynamic>> me() async {
+  final token = (await getToken())?.trim();
+  print("STORED TOKEN = $token");
+
+  if (token == null || token.isEmpty) {
+    throw Exception("Belum login (token kosong)");
+  }
+
+  final url = Uri.parse("$baseUrl/me");
+  final res = await http.get(
+    url,
+    headers: {
+      "Authorization": "Bearer $token",
+      "Accept": "application/json",
+    },
+  );
+
+  print("ME status=${res.statusCode} body=${res.body}");
+
+  final data = jsonDecode(res.body);
+  if (res.statusCode != 200) {
+    throw Exception(data["message"] ?? "Gagal ambil profil");
+  }
+  return data;
+}
+
+  Future<Map<String, dynamic>> updateProfile({
+  required String name,
+  required String email,
+  String? avatarUrl,
+}) async {
+
+  final token = await getToken();
+  if (token == null) throw Exception("Belum login");
+
+  final url = Uri.parse("$baseUrl/profile");
+
+  final res = await http.put(
+    url,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $token",
+    },
+    body: jsonEncode({
+      "name": name,
+      "email": email,
+      "avatar_url": avatarUrl ?? "",
+    }),
+  );
+
+  final data = jsonDecode(res.body);
+
+  if (res.statusCode != 200) {
+    throw Exception(data["message"]);
+  }
+
+  return data;
+}
+
+Future<String> uploadAvatar(String filePath) async {
+  final token = await getToken();
+  if (token == null) throw Exception("Belum login");
+
+  final url = Uri.parse("$baseUrl/profile/avatar");
+
+  final request = http.MultipartRequest("POST", url);
+  request.headers["Authorization"] = "Bearer $token";
+
+  request.files.add(await http.MultipartFile.fromPath("avatar", filePath));
+
+  final streamed = await request.send();
+  final res = await http.Response.fromStream(streamed);
+
+  final data = jsonDecode(res.body);
+  if (res.statusCode != 200) {
+    throw Exception(data["message"] ?? "Upload avatar gagal");
+  }
+
+  // return avatar_url dari backend (contoh: /uploads/user_1.jpg)
+  return (data["avatar_url"] ?? "").toString();
+}
+
+Future<Map<String, dynamic>> verifyOtp({
+  required String email,
+  required String otp,
+}) async {
+  final url = Uri.parse("$baseUrl/auth/verify");
+  final res = await http.post(
+    url,
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "email": email,
+      "otp": otp,
+    }),
+  );
+
+  final data = jsonDecode(res.body);
+  if (res.statusCode != 200) {
+    throw Exception(data["message"] ?? "Verifikasi OTP gagal");
+  }
+
+  return data;
+}
+
+Future<List<Article>> getArticles() async {
+    final url = Uri.parse("$baseUrl/api/articles");
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        // Decode body response menjadi List
+        List data = json.decode(response.body);
+        
+        // Ubah List Map menjadi List Object Article
+        return data.map((item) => Article.fromJson(item)).toList();
+      } else {
+        throw Exception('Gagal ambil data artikel: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan koneksi: $e');
+    }
+  }
+
+}
