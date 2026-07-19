@@ -40,7 +40,13 @@ class DetectionResultView extends StatelessWidget {
     final Map<String, dynamic> args =
         Map<String, dynamic>.from(Get.arguments ?? {});
 
-    final int totalScore = args['total_skor'] ?? 0;
+    final int totalScore = int.tryParse(
+  (
+    args['total_skor'] ??
+    args['total_score'] ??
+    0
+  ).toString(),
+) ?? 0;
     final String mode = (args['mode'] ?? 'quick').toString();
     final bool isMonitoring = mode == 'monitoring';
     
@@ -58,9 +64,12 @@ class DetectionResultView extends StatelessWidget {
     final String recommendation =
         (feedback['recommendation'] ?? '').toString();
 
-
     final Map<String, dynamic> scores =
-        Map<String, dynamic>.from(args['scores'] ?? {});
+    Map<String, dynamic>.from(
+      args['movement_scores'] ??
+      args['scores'] ??
+      {},
+    );
 
     const mainGreen = Color(0xFF316B5C);
     final statusColor = _statusColor(totalScore);
@@ -220,7 +229,7 @@ class DetectionResultView extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => Get.offAllNamed(Routes.DASHBOARD),
+                    onPressed: () => Get.offAllNamed(Routes.PROGRESS),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: totalScore > 2
                           ? const Color(0xFFDC2626)
@@ -324,7 +333,7 @@ class _MainResultCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              'Total skor: $totalScore / 5',
+              'Total skor: $totalScore / 6',
               style: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.w800,
@@ -433,6 +442,7 @@ class _DetailAnalysisTile extends StatelessWidget {
             _ScoreTile(title: 'Tutup Mata', score: scores['tutup_mata']),
             _ScoreTile(title: 'Senyum', score: scores['senyum']),
             _ScoreTile(title: 'Mencucu', score: scores['mencucu']),
+            _ScoreTile(title: 'kerutkan hidung', score: scores['snarl']),
           ],
         ),
       ),

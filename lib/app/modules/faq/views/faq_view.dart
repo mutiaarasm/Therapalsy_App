@@ -35,6 +35,11 @@ class _FaqScreenState extends State<FaqScreen> {
       "answer":
           "TheraPalsy can be used for free with basic features.",
     },
+    {
+      "question": "Who developed the TheraPalsy application?",
+      "answer":
+          "Developed by Mutiara Syifa Maulida,Teknik Informatika, Universitas Harkat Negeri",
+    },
   ];
 
   int expandedIndex = -1;

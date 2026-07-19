@@ -2,15 +2,19 @@ class Article {
   final int id;
   final String title;
   final String content;
-  final String imageUrl;
   final String category;
+  final String imageUrl;
+  final String? sourceName;
+  final String? sourceUrl;
 
   Article({
     required this.id,
     required this.title,
     required this.content,
-    required this.imageUrl,
     required this.category,
+    required this.imageUrl,
+    this.sourceName,
+    this.sourceUrl,
   });
 
   factory Article.fromJson(Map<String, dynamic> json) {
@@ -18,8 +22,10 @@ class Article {
       id: json['id'],
       title: json['title'],
       content: json['content'],
+      category: json['category'],
       imageUrl: json['image_url'] ?? '',
-      category: json['category'] ?? 'Edukasi',
+      sourceName: json['source_name'],
+      sourceUrl: json['source_url'],
     );
   }
 }

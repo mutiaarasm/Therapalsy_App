@@ -7,13 +7,19 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:bellspalsy_app/app/modules/profile/controllers/profile_controller.dart';
 import 'package:bellspalsy_app/services/api_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileView extends StatelessWidget {
   const ProfileView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final ProfileController controller = Get.put(ProfileController());
+   final ProfileController controller =
+        Get.isRegistered<ProfileController>()
+            ? Get.find<ProfileController>()
+            : Get.put<ProfileController>(
+                ProfileController(),
+              );
     const Color mainGreen = Color(0xFF306A5A);
 
     return Scaffold(
@@ -56,7 +62,7 @@ class ProfileView extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                       child: Column(
                         children: [
-                          Obx(() => _buildAvatar(controller.avatarUrl.value)),
+                          Obx(() => _buildAvatar(controller.fullAvatarUrl)),
                           const SizedBox(height: 14),
 
                           Obx(() {
@@ -220,125 +226,245 @@ class ProfileView extends StatelessWidget {
   }
 
   // ===== Avatar =====
-  Widget _buildAvatar(String? avatarUrl) {
-    final fullUrl = (avatarUrl != null && avatarUrl.isNotEmpty)
-        ? "${ApiService.baseUrl}$avatarUrl"
-        : "";
-
-    return Container(
-      width: 108,
-      height: 108,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 5),
-              ),
-              child: ClipOval(
-                child: fullUrl.isNotEmpty
-                    ? Image.network(
-                        fullUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          'assets/images/avatar.jpg',
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Image.asset('assets/images/avatar.jpg', fit: BoxFit.cover),
-              ),
-            ),
-          ),
-          // tiny badge
-          Positioned(
-            bottom: 2,
-            right: 2,
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: const Color(0xFF22C55E),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-              ),
-              child: const Icon(Icons.check_rounded, color: Colors.white, size: 16),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===== Edit Button =====
-  Widget _buildEditButton(Color mainGreen, ProfileController controller) {
-    return SizedBox(
+Widget _buildAvatar(String avatarUrl) {
+  Widget fallbackAvatar() {
+    return Image.asset(
+      'assets/images/avatar.jpg',
       width: double.infinity,
-      height: 48,
-      child: ElevatedButton.icon(
-        onPressed: () async {
-          final result = await Get.to(() => const EditProfileView());
-          if (result == true) controller.loadMe();
-        },
-        icon: const Icon(Icons.edit_rounded, size: 18),
-        label: const Text(
-          'EDIT PROFILE',
-          style: TextStyle(
-            fontSize: 13.8,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.0,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: mainGreen,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-        ),
-      ),
+      height: double.infinity,
+      fit: BoxFit.cover,
+      alignment: Alignment.center,
+      filterQuality: FilterQuality.high,
     );
   }
+
+  return Container(
+    width: 108,
+    height: 108,
+    padding: const EdgeInsets.all(5),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.10),
+          blurRadius: 18,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    ),
+    child: ClipOval(
+      child: avatarUrl.trim().isEmpty
+          ? fallbackAvatar()
+          : CachedNetworkImage(
+              imageUrl: avatarUrl,
+
+              width: double.infinity,
+              height: double.infinity,
+
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+
+              // Hanya width agar rasio foto tidak mleyot.
+              memCacheWidth: 216,
+
+              fadeInDuration:
+                  const Duration(
+                milliseconds: 150,
+              ),
+
+              placeholder: (_, __) {
+                return fallbackAvatar();
+              },
+
+              errorWidget: (_, __, ___) {
+                return fallbackAvatar();
+              },
+            ),
+    ),
+  );
+}
+  // ===== Edit Button =====
+  Widget _buildEditButton(
+  Color mainGreen,
+  ProfileController controller,
+) {
+  return SizedBox(
+    width: double.infinity,
+    height: 48,
+    child: ElevatedButton.icon(
+      onPressed: () async {
+        await Get.to(
+          () => const EditProfileView(),
+        );
+
+        // Tidak perlu loadMe().
+        // EditProfileView memperbarui controller lokal.
+      },
+      icon: const Icon(
+        Icons.edit_rounded,
+        size: 18,
+      ),
+      label: const Text(
+        'EDIT PROFILE',
+        style: TextStyle(
+          fontSize: 13.8,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.0,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: mainGreen,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(999),
+        ),
+      ),
+    ),
+  );
+}
 }
 
 // ===== Logout Dialog =====
 void _showLogoutDialog() {
-  Get.dialog(
-    AlertDialog(
-      title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w900)),
-      content: const Text('Are you sure you want to exit?', style: TextStyle(fontSize: 15)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      actions: [
-        TextButton(
-          onPressed: Get.back,
-          child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
+  Get.bottomSheet(
+    Container(
+      padding: const EdgeInsets.all(22),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(24),
         ),
-        ElevatedButton(
-          onPressed: () async {
-            await ApiService().logout();
-            Get.back();
-            Get.offAllNamed(Routes.LOGIN);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFEF4444),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+
+          // handle bar
+          Container(
+            width: 45,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(999),
+            ),
           ),
-          child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w900)),
-        ),
-      ],
+
+          const SizedBox(height: 18),
+
+          // icon
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFEBEB),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.logout_rounded,
+              color: Color(0xFFEF4444),
+              size: 34,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          const Text(
+            "Logout Account?",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            "You will be signed out from this device.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13.5,
+              color: Colors.black.withOpacity(0.55),
+              height: 1.4,
+            ),
+          ),
+
+          const SizedBox(height: 22),
+
+          // BUTTONS
+          Row(
+            children: [
+
+              // cancel
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: Get.back,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // logout
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // Tutup bottom sheet terlebih dahulu.
+                    if (Get.isBottomSheetOpen == true) {
+                      Get.back();
+                    }
+
+                    // Bersihkan dan hapus controller akun lama.
+                    if (Get.isRegistered<ProfileController>()) {
+                      final ProfileController profileController =
+                          Get.find<ProfileController>();
+
+                      profileController.clear();
+
+                      Get.delete<ProfileController>(
+                        force: true,
+                      );
+                    }
+
+                    // Hapus token dari secure storage.
+                    await ApiService().logout();
+
+                    // Seluruh route lama dibuang.
+                    Get.offAllNamed(Routes.LOGIN);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    "Logout",
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+        ],
+      ),
     ),
-    barrierDismissible: false,
+    isDismissible: true,
   );
 }
 

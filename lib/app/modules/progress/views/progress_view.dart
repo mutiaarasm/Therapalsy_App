@@ -1,62 +1,63 @@
 import 'package:bellspalsy_app/app/modules/dashboard/views/dashboard_view.dart';
-import 'package:bellspalsy_app/app/modules/detection/views/detection_history_view.dart';
 import 'package:bellspalsy_app/app/modules/detection/views/intro_detection_view.dart';
 import 'package:bellspalsy_app/app/modules/profile/views/profile_view.dart';
 import 'package:bellspalsy_app/app/modules/progress/controllers/progress_controller.dart';
 import 'package:bellspalsy_app/app/modules/progress/views/maintenance_therapy_view.dart';
+import 'package:bellspalsy_app/app/modules/progress/views/nearby_healthcare_view.dart';
 import 'package:bellspalsy_app/app/modules/therapy/views/therapy_list.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProgressView extends StatelessWidget {
   const ProgressView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    const Color mainGreen = Color(0xFF306A5A);
-    const Color greyCircle = Color(0xFFE0E0E0);
+Widget build(BuildContext context) {
+  const Color mainGreen = Color(0xFF306A5A);
+  const Color greyCircle = Color(0xFFE0E0E0);
 
-    final controller = Get.put(ProgressController());
+  final ProgressController controller =
+    Get.isRegistered<ProgressController>()
+        ? Get.find<ProgressController>()
+        : Get.put(ProgressController());
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 8, left: 0, right: 0),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                      color: Colors.black87),
-                  onPressed: () {
-                    Get.offAll(() => const DashboardView());
-                  },
-                ),
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      'PROGRESS',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2,
-                        fontSize: 20,
+  return Obx(() {
+  final isMaintenance = controller.programMode.value == 'maintenance';
+  return Scaffold(
+    backgroundColor: Colors.white,
+    // HANYA tampilkan AppBar jika BUKAN mode maintenance
+    appBar: isMaintenance 
+        ? null 
+        : PreferredSize(
+            preferredSize: const Size.fromHeight(60),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      onPressed: () => Get.offAll(() => const DashboardView()),
+                    ),
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          'PROGRESS',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+                        ),
                       ),
                     ),
-                  ),
+                    const Opacity(opacity: 0, child: Icon(Icons.arrow_back_ios_new_rounded)),
+                  ],
                 ),
-                const Opacity(
-                  opacity: 0,
-                  child: Icon(Icons.arrow_back_ios_new_rounded),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-     body: Obx(() {
+    body: isMaintenance
+        ? const MaintenanceTherapyView()
+        : Obx(() {
       final totalTask = controller.totalTask;
       final completedTask = controller.completedTask.value;
       final progressPercent = controller.progressPercent;
@@ -64,66 +65,56 @@ class ProgressView extends StatelessWidget {
     ? List<int>.filled(controller.totalTask, 0)
     : controller.progressScores;
     
-    final programMode = controller.programMode.value;
+    
     final finalResult = controller.analyzeFinalResult();
+    if (controller.programMode.value ==
+    'maintenance') {
+  return const MaintenanceTherapyView();
+}
 
-    if (completedTask >= 7 &&
-        !controller.finalPopupShown.value &&
-        programMode == 'monitoring') {
-      controller.finalPopupShown.value = true;
+if (completedTask >= 7 && !controller.finalPopupShown.value && controller.programMode.value == 'monitoring') {
+  controller.finalPopupShown.value = true;
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (finalResult == 'improved') {
-          Get.dialog(
-            AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22),
-              ),
-              title: const Text('Congratulations! 🎉'),
-              content: const Text(
-                'Your monitoring result shows improvement. You can now continue with maintenance exercises.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Get.back();
-                    controller.activateMaintenanceMode();
-                    controller.programMode.refresh();
-                  },
-                  child: const Text('Continue'),
-                ),
-              ],
-            ),
-            barrierDismissible: false,
-          );
-        } else if (finalResult == 'worse') {
-          Get.dialog(
-            AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22),
-              ),
-              title: const Text('Further Monitoring Needed'),
-              content: const Text(
-                'Your progress still shows instability. It is recommended to repeat the therapy program from Day 1 and consult a medical professional if symptoms worsen.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () async{
-                    Get.back();
-                    await controller.resetMonitoringProgramFromBackend();
-                  },
-                  child: const Text('Repeat Program'),
-                ),
-              ],
-            ),
-            barrierDismissible: false,
-          );
-        }
-      });
-    }
-    if (programMode == 'maintenance') {
-      return const MaintenanceTherapyView();
-      }
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Get.dialog(
+      _FinalResultDialog(
+        lottiePath: finalResult == 'improved'
+            ? 'assets/lottie/alert_good.json'
+            : 'assets/lottie/alert_bad.json',
+        title: finalResult == 'improved'
+            ? 'Great Progress!'
+            : 'Further Monitoring Needed',
+        message: finalResult == 'improved'
+            ? 'Persentase simetri wajah menunjukkan hasil yang baik. Lanjutkan dengan latihan pemeliharaan.'
+            : 'Persentase simetri wajah belum menunjukkan hasil yang cukup baik atau cenderung menurun. Ulangi program atau konsultasikan dengan tenaga kesehatan.',
+        primaryText: finalResult == 'improved'
+            ? 'Continue to Maintenance'
+            : 'Repeat Program',
+        color: finalResult == 'improved' ? mainGreen : const Color(0xFFDC2626),
+        onPrimaryTap: () async {
+          Get.back();
+
+          if (finalResult == 'improved') {
+            controller.activateMaintenanceMode();
+            return;
+          }
+
+          final success = await controller.resetProgram();
+
+          if (success) {
+            Get.offAll(
+              () => const TherapyList(day: 1),
+            );
+          }
+        },
+      ),
+      barrierDismissible: true,
+    );
+  });
+}
+
+
+// Kalau belum, tampilkan progress chart
           return ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -132,6 +123,7 @@ class ProgressView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
               child: Container(
+                
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
@@ -219,13 +211,20 @@ class ProgressView extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 22),
               child: Text(
-                "Progress your face after exercise",
+                'Persentase Simetri Wajah',
                 style: TextStyle(
                   fontSize: 15.5,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
               ),
+            ),
+
+            const SizedBox(height: 10),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 22),
+              child: _AsymmetryInfoCard(),
             ),
 
             const SizedBox(height: 14),
@@ -340,102 +339,295 @@ class ProgressView extends StatelessWidget {
 
             const SizedBox(height: 28),
 
-            if (completedTask >= 7) ...[
+           if (controller.completedTask.value >= 7) ...[
               _FinalMonitoringCard(
-                scores: progressDays,
                 mainGreen: mainGreen,
+                finalResult: controller.analyzeFinalResult(),
               ),
-              const SizedBox(height: 24),
-            ],
-
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 22),
-              child: Text(
-                "Detection History",
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: mainGreen,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Check your detection history in here!",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
-                      ),
+              const SizedBox(height: 16),
+              if (controller.analyzeFinalResult() == 'needs_repeat') ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 22),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF306A5A),
+                        const Color(0xFF3D8B75),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: 170,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Get.to(() => const DetectionHistoryView());
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: mainGreen,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF306A5A).withOpacity(0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () {
+                        Get.to(() => NearbyHealthcareView());
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                          children: const [
+                            Icon(
+                              Icons.local_hospital_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                            SizedBox(width: 10),
                             Text(
-                              "View History",
+                              'Find Nearby Healthcare',
                               style: TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.3,
                               ),
                             ),
-                            SizedBox(width: 7),
-                            Icon(Icons.arrow_forward, size: 18),
+                            SizedBox(width: 10),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
+                )
+              ],
+            ],
 
             const SizedBox(height: 24),
           ],
         );
       }),
-      bottomNavigationBar: _ProgressBottomNav(mainGreen: mainGreen),
+      bottomNavigationBar: _ProgressBottomNav(mainGreen: mainGreen
+      ),
     );
+    });
   }
 }
 
 
+class _AsymmetryInfoCard extends StatelessWidget {
+  const _AsymmetryInfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    const Color mainGreen = Color(0xFF306A5A);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF7F4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: mainGreen.withOpacity(0.16),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: mainGreen.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.trending_up_rounded,
+              color: mainGreen,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cara membaca grafik',
+                  style: TextStyle(
+                    fontSize: 13.8,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  'Setiap batang menunjukkan persentase simetri wajah pada satu sesi. '
+                  'Semakin tinggi nilai dan semakin tinggi batangnya, semakin seimbang '
+                  'gerakan sisi kiri dan kanan wajah yang terukur.',
+                  style: TextStyle(
+                    fontSize: 12.8,
+                    height: 1.4,
+                    color: Colors.black54,
+                  ),
+                ),
+                SizedBox(height: 7),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.arrow_downward_rounded,
+                      size: 16,
+                      color: mainGreen,
+                    ),
+                    SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'Nilai meningkat = perkembangan membaik',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: mainGreen,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FinalResultDialog extends StatelessWidget {
+  final String lottiePath;
+  final String title;
+  final String message;
+  final String primaryText;
+  final Color color;
+  final VoidCallback onPrimaryTap;
+
+  const _FinalResultDialog({
+    required this.lottiePath,
+    required this.title,
+    required this.message,
+    required this.primaryText,
+    required this.color,
+    required this.onPrimaryTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 26),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => Get.back(),
+              ),
+            ),
+
+            SizedBox(
+              width: 150,
+              height: 150,
+              child: Lottie.asset(
+                lottiePath,
+                repeat: true,
+                fit: BoxFit.contain,
+              ),
+            ),
+
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w900,
+                color: Colors.black87,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.45,
+                color: Colors.black.withOpacity(0.62),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: onPrimaryTap,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Text(
+                  primaryText,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _ProgressBottomNav extends StatelessWidget {
   final Color mainGreen;
   const _ProgressBottomNav({required this.mainGreen});
 
   @override
+  
   Widget build(BuildContext context) {
+    
     return BottomNavigationBar(
       selectedItemColor: mainGreen,
       unselectedItemColor: Colors.black54,
@@ -466,23 +658,34 @@ class _ProgressBottomNav extends StatelessWidget {
     );
   }
 }
+Future<void> openNearbyHospitals() async {
+  final Uri url = Uri.parse(
+    'https://www.google.com/maps/search/hospital+neurologist+near+me',
+  );
+
+  if (!await launchUrl(
+    url,
+    mode: LaunchMode.externalApplication,
+  )) {
+    Get.snackbar(
+      'Unable to open Maps',
+      'Please check your device connection.',
+    );
+  }
+}
 
 class _FinalMonitoringCard extends StatelessWidget {
-  final List<int> scores;
   final Color mainGreen;
-
+  final String finalResult; // 'improved' atau 'needs_repeat'
+  
   const _FinalMonitoringCard({
-    required this.scores,
     required this.mainGreen,
+    required this.finalResult,
   });
 
   @override
   Widget build(BuildContext context) {
-    final firstScore = scores.firstWhere((e) => e > 0, orElse: () => 0);
-    final lastScore = scores.isNotEmpty ? scores.last : 0;
-
-    final bool isBetter = lastScore <= firstScore || lastScore <= 20;
-    final bool isNormal = lastScore <= 20;
+    final bool isBetter = finalResult == 'improved';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -520,8 +723,8 @@ class _FinalMonitoringCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               isBetter
-                  ? 'Your face exercise progress looks better. You can continue with maintenance exercises anytime.'
-                  : 'Your monitoring result still needs attention. Consider continuing therapy and consulting a medical professional if symptoms persist or worsen.',
+                  ? 'Persentase simetri wajah menunjukkan hasil yang baik. Kamu dapat melanjutkan ke latihan pemeliharaan.'
+                  : 'Persentase simetri belum meningkat secara konsisten atau masih menurun. Ulangi program atau konsultasikan dengan tenaga kesehatan.',
               style: const TextStyle(
                 fontSize: 14,
                 height: 1.45,
@@ -532,17 +735,26 @@ class _FinalMonitoringCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  if (isBetter || isNormal) {
-                     Get.to(() => const MaintenanceTherapyView());
-                  } else {
-                    // ulang dari day 1
-                    Get.to(() => TherapyList(day: 1));
+               onPressed: () async {
+                  if (isBetter) {
+                    Get.to(
+                      () => const MaintenanceTherapyView(),
+                    );
+                    return;
+                  }
+
+                  final controller = Get.find<ProgressController>();
+
+                  final success = await controller.resetProgram();
+
+                  if (success) {
+                    Get.offAll(
+                      () => const TherapyList(day: 1),
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isBetter ? mainGreen : const Color(0xFFDC2626),
+                  backgroundColor: isBetter ? mainGreen : const Color(0xFFDC2626),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(

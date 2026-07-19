@@ -1,3 +1,4 @@
+import 'package:bellspalsy_app/app/modules/auth/controllers/auth_controller.dart';
 import 'package:bellspalsy_app/app/modules/auth/forgot_pass/views/forgot_pass_view.dart';
 import 'package:bellspalsy_app/app/routes/app_pages.dart';
 import 'package:bellspalsy_app/services/api_service.dart';
@@ -31,12 +32,14 @@ class _LoginViewState extends State<LoginView> {
   final pass = passC.text;
 
   if (email.isEmpty || pass.isEmpty) {
-    Get.snackbar('Gagal', 'Email dan password wajib diisi',
-        snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar(
+      'Gagal',
+      'Email dan password wajib diisi',
+      snackPosition: SnackPosition.BOTTOM,
+    );
     return;
   }
 
-  // loading
   Get.dialog(
     const Center(child: CircularProgressIndicator()),
     barrierDismissible: false,
@@ -44,17 +47,35 @@ class _LoginViewState extends State<LoginView> {
 
   try {
     final api = ApiService();
-    await api.login(email: email, password: pass); // <-- simpan token otomatis
+    final loginResponse = await api.login(email: email, password: pass);
 
-    Get.back(); // tutup loading
+    print('LOGIN RESPONSE: $loginResponse');
 
-    Get.snackbar('Sukses', 'Login berhasil',
-        snackPosition: SnackPosition.BOTTOM);
+    final user = loginResponse['user'];
 
-    // pindah ke halaman home/dashboard (sesuaikan route kamu)
+    if (user == null || user['id'] == null) {
+      throw Exception('User ID tidak ditemukan dari response login');
+    }
+
+    final int currentUserId = int.parse(user['id'].toString());
+    final String jwtToken = loginResponse['access_token'].toString();
+
+    AuthController.to.setUser(currentUserId, jwtToken);
+
+    Get.back();
+
+    Get.snackbar(
+      'Sukses',
+      'Login berhasil',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+
     Get.offAllNamed(Routes.DASHBOARD);
   } catch (e) {
-    Get.back(); // tutup loading
+    if (Get.isDialogOpen == true) {
+      Get.back();
+    }
+
     Get.snackbar(
       'Login gagal',
       e.toString().replaceAll('Exception: ', ''),

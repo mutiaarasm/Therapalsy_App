@@ -1,23 +1,15 @@
 import 'package:get/get.dart';
 
 class AuthController extends GetxController {
-  //TODO: Implement AuthController
+  static AuthController get to => Get.find();
 
-  final count = 0.obs;
-  @override
-  void onInit() {
-    super.onInit();
+  final RxInt userId = 0.obs; // menyimpan ID user login
+  final RxString token = ''.obs; // menyimpan JWT token
+
+  void setUser(int id, String jwtToken) {
+    userId.value = id;
+    token.value = jwtToken;
   }
 
-  @override
-  void onReady() {
-    super.onReady();
-  }
-
-  @override
-  void onClose() {
-    super.onClose();
-  }
-
-  void increment() => count.value++;
+  bool get isLoggedIn => token.value.isNotEmpty;
 }

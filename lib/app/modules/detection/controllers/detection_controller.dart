@@ -3,7 +3,6 @@ import 'package:bellspalsy_app/services/face_detection_service.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 
 class DetectionController extends GetxController {
   final FaceDetectionService service = FaceDetectionService();

@@ -28,18 +28,20 @@ class WelcomeView extends StatelessWidget {
               ),
             ),
           ),
+          
           // Gambar proporsional, center, tidak terpotong
           Positioned(
-          top: 280, // atur ke atas (semakin kecil semakin ke atas, semakin besar semakin ke bawah)
-          left: 0,
-          right: 0,
-          child: Image.asset(
-            'assets/images/welcome.png',
-            fit: BoxFit.fitWidth,
-            width: MediaQuery.of(context).size.width,
+            top: 280, 
+            left: 0,
+            right: 0,
+            child: Image.asset(
+              'assets/images/welcome.png',
+              fit: BoxFit.fitWidth,
+              width: MediaQuery.of(context).size.width,
             ),
           ),
-          // Overlay gradient agar teks & tombol tetap jelas
+          
+          // Overlay gradient agar teks tetap jelas
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -54,14 +56,15 @@ class WelcomeView extends StatelessWidget {
               ),
             ),
           ),
-          // Teks dua baris di pojok kiri atas
+          
+          // Teks dua baris di kiri atas
           Positioned(
             top: 110,
             left: 34,
             right: 24,
-            child: Text(
+            child: const Text(
               'Start Your Therapy\nJourney With Us!',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 44,
                 fontWeight: FontWeight.w100,
                 color: Colors.black87,
@@ -69,73 +72,32 @@ class WelcomeView extends StatelessWidget {
               ),
             ),
           ),
-          // Tombol di bawah
-          // Tombol di bawah (tanpa background putih)
+
+          // BUTTON GET STARTED DI POJOK KANAN ATAS (Tanpa layer/kotakan hijau)
           Positioned(
-            left: 28,
-            right: 28,
-            bottom: 42,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: 58,
-                  child: ElevatedButton(
-                    onPressed: () => Get.toNamed(Routes.REGISTER),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: mainGreen,
-                      foregroundColor: Colors.white,
-                      elevation: 12,
-                      shadowColor: mainGreen.withOpacity(0.35),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "Get Started",
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        Icon(Icons.arrow_forward_rounded),
-                      ],
+            top: 50, // Menyesuaikan area safe zone atas ponsel
+            right: 20,
+            child: TextButton(
+              onPressed: () => Get.toNamed(Routes.REGISTER),
+              style: TextButton.styleFrom(
+                foregroundColor: mainGreen, // Warna teks & icon utama
+                backgroundColor: Colors.transparent, // Menghilangkan background/layer kotak
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Text(
+                    "Get Started",
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 18),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Already have an account? ",
-                      style: TextStyle(
-                        color: Colors.black.withOpacity(0.55),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Get.toNamed(Routes.LOGIN),
-                      child: Text(
-                        "Sign In",
-                        style: TextStyle(
-                          color: mainGreen,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  SizedBox(width: 6),
+                  Icon(Icons.arrow_forward_rounded, size: 18),
+                ],
+              ),
             ),
           ),
         ],

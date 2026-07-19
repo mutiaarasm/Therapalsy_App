@@ -71,10 +71,13 @@ class _RegisterViewState extends State<RegisterView> {
     );
 
     /// pindah ke OTP screen
-    Get.toNamed(
-      Routes.OTP,
-      arguments: email,
-    );
+    Get.offNamed(
+  Routes.OTP,
+  arguments: {
+    'email': email.trim().toLowerCase(),
+    'type': 'register',
+  },
+);
 
   } catch (e) {
 

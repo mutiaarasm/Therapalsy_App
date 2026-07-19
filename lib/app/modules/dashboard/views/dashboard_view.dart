@@ -210,7 +210,7 @@ Padding(
   padding: const EdgeInsets.symmetric(horizontal: 18),
   child: _SectionTitle(
     title: "Insight",
-    subtitle: "Ringkasan progress terapi 7 hari (dummy)",
+    subtitle: "Ringkasan progress terapi 7 hari",
     color: mainGreen,
   ),
 ),
@@ -712,68 +712,7 @@ class _ArticleCard extends StatelessWidget {
     );
   }
 }
-// =====================
-// Card Shell + Header
-// =====================
 
-class _CardHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Color color;
-  final IconData icon;
-
-  const _CardHeader({
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// =====================
-// Page Dots
 // =====================
 class _PageDots extends StatelessWidget {
   final int count;

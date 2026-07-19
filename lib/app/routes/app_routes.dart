@@ -21,6 +21,7 @@ abstract class Routes {
   static const GREAT_JOB = _Paths.GREAT_JOB;
   static const SIGN_IN_HISTORY = _Paths.SIGN_IN_HISTORY;
   static const ARTICLE = _Paths.ARTICLE;
+  static const AUTH_RESET_PASSWORD = _Paths.AUTH + _Paths.RESET_PASSWORD;
 }
 
 abstract class _Paths {
@@ -43,4 +44,6 @@ abstract class _Paths {
   static const GREAT_JOB = '/great-job';
   static const SIGN_IN_HISTORY = '/sign-in-history';
   static const ARTICLE = '/article';
+  static const RESET_PASSWORD = '/reset-password';
+  
 }

@@ -1,4 +1,3 @@
-import 'package:bellspalsy_app/app/modules/SelfReport/views/self_report_view.dart';
 import 'package:bellspalsy_app/app/modules/detection/views/detection_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -27,22 +26,13 @@ class _TherapyVideoState extends State<TherapyVideo> {
   @override
   void initState() {
     super.initState();
-
-    /// ambil 5 video sesuai day
+    // Ambil video 5 per hari sesuai controller
     exercises = controller.getExercisesByDay(controller.selectedDay.value);
-    if (exercises.isEmpty) {
-  return;
-}
+    if (exercises.isEmpty) return;
 
-    /// init youtube player
     _ytController = YoutubePlayerController(
-      initialVideoId: exercises.isNotEmpty
-          ? exercises[_index]['yt_id']!
-          : 'chzl_w2AwxI',
-      flags: const YoutubePlayerFlags(
-        autoPlay: false,
-        mute: false,
-      ),
+      initialVideoId: exercises[_index]['yt_id']!,
+      flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
     );
   }
 
@@ -86,7 +76,7 @@ class _TherapyVideoState extends State<TherapyVideo> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-               SizedBox(
+                SizedBox(
                   width: 140,
                   height: 140,
                   child: Lottie.asset(
@@ -128,7 +118,6 @@ class _TherapyVideoState extends State<TherapyVideo> {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
-
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
@@ -178,15 +167,14 @@ class _TherapyVideoState extends State<TherapyVideo> {
       body: SafeArea(
         child: Column(
           children: [
-            // TOP BAR
+            // Top bar
             Padding(
               padding: const EdgeInsets.only(top: 10, left: 16, right: 16),
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.close, size: 28, color: Colors.black54),
-                  ),
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.close, size: 28, color: Colors.black54)),
                   const Spacer(),
                   Text(
                     'LATIHAN ${_index + 1} DARI ${exercises.length}',
@@ -202,10 +190,8 @@ class _TherapyVideoState extends State<TherapyVideo> {
                 ],
               ),
             ),
-
             const SizedBox(height: 18),
-
-            // 🔥 YOUTUBE PLAYER (INI YANG FIX EMBED)
+            // Youtube player
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ClipRRect(
@@ -217,10 +203,8 @@ class _TherapyVideoState extends State<TherapyVideo> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // BOTTOM CONTENT
+            // Bottom content
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -234,7 +218,7 @@ class _TherapyVideoState extends State<TherapyVideo> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        'Latihan ${_index + 1}',
+                        ex['title'] ?? 'Latihan ${_index + 1}',
                         style: const TextStyle(
                           color: mainPink,
                           fontWeight: FontWeight.w700,
@@ -250,11 +234,8 @@ class _TherapyVideoState extends State<TherapyVideo> {
                           color: Colors.black54,
                           fontSize: 15,
                         ),
-                        
                         textAlign: TextAlign.center,
                       ),
-                      
-
                       const SizedBox(height: 22),
                       Container(
                         width: double.infinity,
@@ -262,42 +243,29 @@ class _TherapyVideoState extends State<TherapyVideo> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFF4FAF7),
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: mainGreen.withOpacity(0.12),
-                          ),
+                          border: Border.all(color: mainGreen.withOpacity(0.12)),
                         ),
                         child: Column(
                           children: const [
-                            Icon(
-                              Icons.tips_and_updates_rounded,
-                              color: mainGreen,
-                              size: 28,
-                            ),
+                            Icon(Icons.tips_and_updates_rounded, color: mainGreen, size: 28),
                             SizedBox(height: 10),
                             Text(
                               "Tips Latihan",
                               style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.black87,
-                              ),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.black87),
                             ),
                             SizedBox(height: 6),
                             Text(
-                              "Lakukan gerakan secara perlahan di depan cermin. Jangan memaksakan otot wajah jika terasa tidak nyaman.",
+                              "Lakukan gerakan secara perlahan di depan cermin. Jangan memaksakan otot wajah jika terasa tidak nyaman. Putar Video sebanyak 8x",
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                height: 1.5,
-                                color: Colors.black54,
-                              ),
+                              style: TextStyle(fontSize: 13.5, height: 1.5, color: Colors.black54),
                             ),
                           ],
                         ),
                       ),
-                      
-                       const Spacer(),
-
+                      const Spacer(),
                       SizedBox(
                         width: double.infinity,
                         height: 48,
@@ -321,9 +289,7 @@ class _TherapyVideoState extends State<TherapyVideo> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 12),
-
                       if (_hasPrev)
                         TextButton(
                           onPressed: _prev,

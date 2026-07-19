@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
+import 'dart:ui' as ui;
 
+import 'package:bellspalsy_app/app/modules/auth/controllers/auth_controller.dart';
 import 'package:bellspalsy_app/app/modules/detection/models/detection_face_status.dart';
 import 'package:bellspalsy_app/services/api_service.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Size;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:http/http.dart' as http;
 
@@ -19,7 +21,35 @@ class FaceDetectionService {
 
   bool _busy = false;
 
-  
+  DetectionFaceStatus _evaluateFaces(List<Face> faces, double imageWidth) {
+    if (faces.isEmpty) {
+      return DetectionFaceStatus.noFace;
+    }
+
+    if (faces.length > 1) {
+      return DetectionFaceStatus.multipleFaces;
+    }
+
+    final Face face = faces.first;
+    final double faceWidthRatio = face.boundingBox.width / imageWidth;
+
+    if (faceWidthRatio < 0.28) {
+      return DetectionFaceStatus.tooFar;
+    }
+
+    if (faceWidthRatio > 0.75) {
+      return DetectionFaceStatus.tooClose;
+    }
+
+    final double yaw = face.headEulerAngleY ?? 0.0;
+    final double roll = face.headEulerAngleZ ?? 0.0;
+
+    if (yaw.abs() > 12.0 || roll.abs() > 10.0) {
+      return DetectionFaceStatus.headNotFrontal;
+    }
+
+    return DetectionFaceStatus.valid;
+  }
 
   Future<DetectionFaceStatus?> processImage(
     CameraImage image,
@@ -29,21 +59,55 @@ class FaceDetectionService {
     _busy = true;
 
     try {
-      final inputImage = _toInputImage(image, camera);
+      final InputImage? inputImage = _toInputImage(image, camera);
 
       if (inputImage == null) {
-        debugPrint('InputImage conversion failed');
         return DetectionFaceStatus.noFace;
       }
 
-      final faces = await _detector.processImage(inputImage);
+      final List<Face> faces = await _detector.processImage(inputImage);
 
-      if (faces.isEmpty) return DetectionFaceStatus.noFace;
-      if (faces.length > 1) return DetectionFaceStatus.multipleFaces;
+      return _evaluateFaces(faces, image.width.toDouble());
+    } catch (error, stackTrace) {
+      debugPrint('ML Kit stream error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return DetectionFaceStatus.noFace;
+    } finally {
+      _busy = false;
+    }
+  }
 
-      return DetectionFaceStatus.valid;
-    } catch (e) {
-      debugPrint('MLKit error: $e');
+  Future<DetectionFaceStatus> processCapturedFile(XFile file) async {
+    if (_busy) {
+      return DetectionFaceStatus.noFace;
+    }
+
+    _busy = true;
+
+    try {
+      final Uint8List bytes = await file.readAsBytes();
+
+      if (bytes.isEmpty) {
+        return DetectionFaceStatus.noFace;
+      }
+
+      final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+
+      final ui.FrameInfo frameInfo = await codec.getNextFrame();
+
+      final double imageWidth = frameInfo.image.width.toDouble();
+
+      frameInfo.image.dispose();
+      codec.dispose();
+
+      final InputImage inputImage = InputImage.fromFilePath(file.path);
+
+      final List<Face> faces = await _detector.processImage(inputImage);
+
+      return _evaluateFaces(faces, imageWidth);
+    } catch (error, stackTrace) {
+      debugPrint('ML Kit captured file error: $error');
+      debugPrintStack(stackTrace: stackTrace);
       return DetectionFaceStatus.noFace;
     } finally {
       _busy = false;
@@ -54,63 +118,72 @@ class FaceDetectionService {
     Map<String, List<String>> frames, {
     String mode = 'quick',
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse("${ApiService.baseUrl}/api/detection/analyze"),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "frames": frames,
-          "mode": mode,
-          "user_id": 1,
-        }),
-      );
+    final String token = AuthController.to.token.value;
 
-      final body = jsonDecode(response.body);
+    final http.Response response = await http.post(
+      ApiService.uri('/api/detection/analyze'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'frames': frames, 'mode': mode}),
+    );
 
-      if (response.statusCode == 200 && body["success"] == true) {
-        return Map<String, dynamic>.from(body["data"]);
+    final String contentType = response.headers['content-type'] ?? '';
+
+    if (!contentType.toLowerCase().contains('application/json')) {
+      throw Exception('Respons server bukan JSON: ${response.body}');
+    }
+
+    final dynamic decodedBody = jsonDecode(response.body);
+
+    if (decodedBody is! Map<String, dynamic>) {
+      throw Exception('Format respons server tidak valid.');
+    }
+
+    final Map<String, dynamic> body = decodedBody;
+
+    if (response.statusCode == 200 && body['success'] == true) {
+      final dynamic data = body['data'];
+
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Data hasil analisis tidak valid.');
       }
 
-      throw Exception(body["message"] ?? "Gagal menganalisis wajah");
-    } catch (e) {
-      debugPrint("analyzeBellPalsy error: $e");
-      rethrow;
+      return Map<String, dynamic>.from(data);
     }
+
+    throw Exception(
+      body['message'] ??
+          'Gagal menganalisis wajah. '
+              'Status: ${response.statusCode}',
+    );
   }
 
-  InputImage? _toInputImage(
-    CameraImage image,
-    CameraDescription camera,
-  ) {
-    final rotation =
-        InputImageRotationValue.fromRawValue(camera.sensorOrientation);
+  InputImage? _toInputImage(CameraImage image, CameraDescription camera) {
+    final InputImageRotation? rotation = InputImageRotationValue.fromRawValue(
+      camera.sensorOrientation,
+    );
 
     if (rotation == null) {
       debugPrint('Invalid rotation: ${camera.sensorOrientation}');
       return null;
     }
 
-    final size = Size(
-      image.width.toDouble(),
-      image.height.toDouble(),
-    );
+    final Size size = Size(image.width.toDouble(), image.height.toDouble());
 
     if (Platform.isAndroid) {
       if (image.planes.length < 3) {
-        debugPrint('Android image does not have 3 planes');
         return null;
       }
 
       if (image.format.group != ImageFormatGroup.yuv420) {
-        debugPrint('Unsupported Android image format: ${image.format.group}');
         return null;
       }
 
-      final nv21Bytes = _convertYUV420ToNV21(image);
+      final Uint8List? nv21Bytes = _convertYUV420ToNV21(image);
+
       if (nv21Bytes == null) {
-        debugPrint('Failed converting YUV420 to NV21');
         return null;
       }
 
@@ -127,12 +200,10 @@ class FaceDetectionService {
 
     if (Platform.isIOS) {
       if (image.planes.isEmpty) {
-        debugPrint('iOS image has no planes');
         return null;
       }
 
       if (image.format.group != ImageFormatGroup.bgra8888) {
-        debugPrint('Unsupported iOS image format: ${image.format.group}');
         return null;
       }
 
@@ -147,50 +218,67 @@ class FaceDetectionService {
       );
     }
 
-    debugPrint('Unsupported platform');
     return null;
   }
 
   Uint8List? _convertYUV420ToNV21(CameraImage image) {
     try {
-      final width = image.width;
-      final height = image.height;
+      final int width = image.width;
+      final int height = image.height;
 
-      final yPlane = image.planes[0];
-      final uPlane = image.planes[1];
-      final vPlane = image.planes[2];
+      final Plane yPlane = image.planes[0];
+      final Plane uPlane = image.planes[1];
+      final Plane vPlane = image.planes[2];
 
-      final out = Uint8List(width * height + (width * height ~/ 2));
+      final Uint8List output = Uint8List(
+        width * height + (width * height ~/ 2),
+      );
 
-      int index = 0;
+      int outputIndex = 0;
 
       for (int y = 0; y < height; y++) {
-        final yRow = y * yPlane.bytesPerRow;
+        final int yRow = y * yPlane.bytesPerRow;
+
         for (int x = 0; x < width; x++) {
-          out[index++] = yPlane.bytes[yRow + x];
-        }
-      }
+          final int sourceIndex = yRow + x;
 
-      final uvRowStride = uPlane.bytesPerRow;
-      final uvPixelStride = uPlane.bytesPerPixel ?? 1;
-
-      for (int y = 0; y < height ~/ 2; y++) {
-        for (int x = 0; x < width ~/ 2; x++) {
-          final uvIndex = y * uvRowStride + x * uvPixelStride;
-
-          if (uvIndex >= vPlane.bytes.length ||
-              uvIndex >= uPlane.bytes.length) {
+          if (sourceIndex >= yPlane.bytes.length) {
             return null;
           }
 
-          out[index++] = vPlane.bytes[uvIndex];
-          out[index++] = uPlane.bytes[uvIndex];
+          output[outputIndex++] = yPlane.bytes[sourceIndex];
         }
       }
 
-      return out;
-    } catch (e) {
-      debugPrint('YUV420 to NV21 conversion error: $e');
+      final int uRowStride = uPlane.bytesPerRow;
+      final int vRowStride = vPlane.bytesPerRow;
+
+      final int uPixelStride = uPlane.bytesPerPixel ?? 1;
+      final int vPixelStride = vPlane.bytesPerPixel ?? 1;
+
+      for (int y = 0; y < height ~/ 2; y++) {
+        for (int x = 0; x < width ~/ 2; x++) {
+          final int uIndex = y * uRowStride + x * uPixelStride;
+
+          final int vIndex = y * vRowStride + x * vPixelStride;
+
+          if (uIndex >= uPlane.bytes.length ||
+              vIndex >= vPlane.bytes.length ||
+              outputIndex + 1 >= output.length) {
+            return null;
+          }
+
+          // NV21: V lalu U.
+          output[outputIndex++] = vPlane.bytes[vIndex];
+
+          output[outputIndex++] = uPlane.bytes[uIndex];
+        }
+      }
+
+      return output;
+    } catch (error, stackTrace) {
+      debugPrint('YUV420 to NV21 conversion error: $error');
+      debugPrintStack(stackTrace: stackTrace);
       return null;
     }
   }

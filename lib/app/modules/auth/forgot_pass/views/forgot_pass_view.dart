@@ -1,4 +1,5 @@
 import 'package:bellspalsy_app/app/routes/app_pages.dart';
+import 'package:bellspalsy_app/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -6,12 +7,17 @@ class ForgotPassView extends StatefulWidget {
   const ForgotPassView({super.key});
 
   @override
-  State<ForgotPassView> createState() => _ForgotViewState();
+  State<ForgotPassView> createState() => _ForgotPassViewState();
 }
 
-class _ForgotViewState extends State<ForgotPassView> {
+class _ForgotPassViewState extends State<ForgotPassView> {
   final TextEditingController emailController = TextEditingController();
+
   final Color mainGreen = const Color(0xFF2F5D4E);
+
+  final ApiService api = Get.find<ApiService>();
+
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -19,23 +25,59 @@ class _ForgotViewState extends State<ForgotPassView> {
     super.dispose();
   }
 
-  void _onSendCode() {
-  final email = emailController.text.trim();
-
-  if (email.isEmpty) {
-    Get.snackbar(
-      'Error',
-      'Please enter your email',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-    return;
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
   }
 
-  // nanti di sini bisa call API kirim OTP
-  // await authService.sendOtp(email);
+  void _onSendCode() async {
+    final email = emailController.text.trim();
 
-  Get.toNamed(Routes.OTP);
-}
+    if (email.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Email tidak boleh kosong',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (!_isValidEmail(email)) {
+      Get.snackbar(
+        'Error',
+        'Format email tidak valid',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      await api.forgotPassword(email: email);
+
+      Get.snackbar(
+        'Success',
+        'Kode OTP berhasil dikirim ke email',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+
+   Get.toNamed(
+  Routes.OTP,
+  arguments: {
+    "email": email,
+    "type": "reset" // ✅ HARUS INI
+  },
+);
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Gagal mengirim OTP, coba lagi nanti',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +114,9 @@ class _ForgotViewState extends State<ForgotPassView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 210),
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.2,
+                        ),
 
                         const Text(
                           'Forgot\nPassword',
@@ -83,6 +127,7 @@ class _ForgotViewState extends State<ForgotPassView> {
                             height: 1.2,
                           ),
                         ),
+
                         const SizedBox(height: 16),
 
                         const Text(
@@ -94,6 +139,7 @@ class _ForgotViewState extends State<ForgotPassView> {
                             height: 1.4,
                           ),
                         ),
+
                         const SizedBox(height: 36),
 
                         TextField(
@@ -124,12 +170,13 @@ class _ForgotViewState extends State<ForgotPassView> {
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 28),
 
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: _onSendCode,
+                            onPressed: isLoading ? null : _onSendCode,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: mainGreen,
                               foregroundColor: Colors.white,
@@ -139,14 +186,23 @@ class _ForgotViewState extends State<ForgotPassView> {
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
-                              'SEND CODE',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'SEND CODE',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],

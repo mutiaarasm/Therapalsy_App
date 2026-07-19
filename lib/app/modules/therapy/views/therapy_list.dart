@@ -1,3 +1,4 @@
+import 'package:bellspalsy_app/app/modules/dashboard/views/dashboard_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/therapy_controller.dart';
@@ -37,7 +38,15 @@ class TherapyList extends StatelessWidget {
                       Icons.arrow_back_ios_new_rounded,
                       color: Colors.black87,
                     ),
-                    onPressed: () => Get.back(),
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Get.back();
+                      } else {
+                        Get.offAll(
+                          () => const DashboardView(),
+                        );
+                      }
+                    },
                   ),
                   Expanded(
                     child: Center(
